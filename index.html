@@ -353,6 +353,46 @@ tbody td{padding:8px 10px;vertical-align:middle}
   #loading-overlay{display:none!important}
 }
 
+/* ---- LAPORAN PDF PRINT STYLES ---- */
+.print-laporan-btn-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+@media print{
+  body.printing-laporan *{visibility:hidden}
+  body.printing-laporan #print-laporan-area,
+  body.printing-laporan #print-laporan-area *{visibility:visible}
+  body.printing-laporan #print-laporan-area{
+    position:fixed;inset:0;z-index:999999;background:white;
+    padding:20mm 20mm 20mm 25mm;overflow:visible;
+  }
+  body.printing-laporan #loading-overlay{display:none!important;visibility:hidden!important}
+}
+#print-laporan-area{display:none}
+.lp-kop{text-align:center;margin-bottom:8px;border-bottom:3px double #000;padding-bottom:8px}
+.lp-kop-title{font-size:16px;font-weight:800;text-transform:uppercase;letter-spacing:.5px}
+.lp-kop-sub{font-size:13px;font-weight:700;margin-top:2px}
+.lp-kop-org{font-size:11px;margin-top:3px}
+.lp-kop-alamat{font-size:10px;color:#555;margin-top:2px}
+.lp-doc-title{text-align:center;font-size:13px;font-weight:800;text-transform:uppercase;margin:10px 0 4px;text-decoration:underline}
+.lp-doc-sub{text-align:center;font-size:11px;margin-bottom:10px}
+.lp-meta{font-size:10px;margin-bottom:8px;display:flex;justify-content:space-between}
+.lp-tbl{width:100%;border-collapse:collapse;font-size:10px;margin-bottom:8px}
+.lp-tbl th{background:#1e293b;color:white;padding:6px 8px;text-align:left;font-weight:700;border:1px solid #334155;font-size:10px}
+.lp-tbl td{padding:5px 8px;border:1px solid #aaa;vertical-align:middle}
+.lp-tbl tbody tr:nth-child(even){background:#f0f4f8}
+.lp-tbl tfoot td{background:#fee2e2;font-weight:800;border:1px solid #f87171}
+.lp-ttd{display:flex;justify-content:flex-end;margin-top:16px;gap:60px}
+.lp-ttd-box{text-align:center;font-size:10px;min-width:120px}
+.lp-ttd-space{height:40px}
+.lp-sign-name{font-weight:700;border-top:1px solid #000;padding-top:2px}
+.lp-section{margin-bottom:12px}
+.lp-section-h{font-size:11px;font-weight:800;background:#e2e8f0;padding:5px 8px;border:1px solid #cbd5e1;margin-bottom:0;text-transform:uppercase}
+.lp-note{font-size:9px;color:#555;margin-top:4px;font-style:italic}
+.lp-kop-logo-row{display:flex;align-items:center;gap:12px;justify-content:center;margin-bottom:4px}
+.lp-grand-box{background:#1e293b;color:white;padding:8px 12px;border-radius:4px;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:11px}
+.lp-grand-box span:last-child{font-weight:800;font-size:14px}
+/* Sync buku kas */
+.kas-sync-btn{background:linear-gradient(135deg,#047857,#065f46);color:white;border:none;border-radius:8px;font-family:inherit;font-weight:700;font-size:.72rem;padding:6px 12px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:opacity .15s}
+.kas-sync-btn:hover{opacity:.9}
+
 /* ---- BUKTI PEMBAYARAN THERMAL ---- */
 .thermal-preview{max-width:280px;margin:0 auto;font-family:'Courier New',Courier,monospace;font-size:11px;color:#000;background:white;padding:10px;border:1px dashed #ccc}
 .tp-logo{text-align:center;margin-bottom:5px}
@@ -719,6 +759,11 @@ tbody td{padding:8px 10px;vertical-align:middle}
 
       <!-- LAPORAN -->
       <div class="section" id="sec-b-laporan">
+        <!-- TOMBOL CETAK LAPORAN -->
+        <div class="print-laporan-btn-row no-print">
+          <button class="btn btn-primary btn-sm" onclick="cetakLaporanRekap()">🖨️ Cetak / PDF Rekap Semua Sekolah</button>
+          <button class="btn btn-blue btn-sm" onclick="cetakLaporanPerSekolah()">📋 Cetak / PDF Per Sekolah</button>
+        </div>
         <div class="kpi-row">
           <div class="kpi kpi-blue"><div class="kpi-val" id="lap-kkks">Rp 0</div><div class="kpi-label">Total Iuran KKKS</div></div>
           <div class="kpi kpi-green"><div class="kpi-val" id="lap-sosial">Rp 0</div><div class="kpi-label">Total Iuran Sosial</div></div>
@@ -810,9 +855,10 @@ tbody td{padding:8px 10px;vertical-align:middle}
         <div class="card">
           <div class="card-title-row">
             <div class="card-title">📒 Buku Kas Umum</div>
-            <div style="display:flex;gap:6px">
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
               <button class="btn btn-ghost btn-xs" onclick="exportKasCSV()">📄 CSV</button>
-              <button class="btn btn-blue btn-xs" onclick="printBukuKas()">🖨️ Cetak</button>
+              <button class="btn btn-blue btn-xs" onclick="cetakBukuKasFormal()">🖨️ Cetak PDF</button>
+              <button class="kas-sync-btn" onclick="syncBukuKasToSheets(this)" title="Kirim ulang semua data Buku Kas ke Google Sheets">☁️ Sync Sheets</button>
             </div>
           </div>
           <div class="filter-bar">
@@ -1006,6 +1052,9 @@ tbody td{padding:8px 10px;vertical-align:middle}
   </div>
 </div>
 
+<!-- AREA CETAK LAPORAN FORMAL (tersembunyi, muncul saat print) -->
+<div id="print-laporan-area"></div>
+
 <!-- MODAL: Drilldown -->
 <div class="modal-overlay" id="modal-drill">
   <div class="modal" style="max-width:500px">
@@ -1053,7 +1102,7 @@ tbody td{padding:8px 10px;vertical-align:middle}
 // ================================================================
 // CONFIG — TERTANAM (tidak perlu konfigurasi di aplikasi)
 // ================================================================
-const GAS_URL_EMBEDDED = 'https://script.google.com/macros/s/AKfycbyZ6Ns3M1x9s8vdLbpTCIkl9_pc_b3oeusWLGca-mKp6h2SDW2cCgnchX-D0NUGOjcc/exec';
+const GAS_URL_EMBEDDED = 'https://script.google.com/macros/s/AKfycbzSjsSWq97ojVL7aV9bqBQUNVY2I21l9EDb3VUn8r45S_6L56qwWd-3cQqOeU4S5mdl/exec';
 const SHEET_ID_EMBEDDED = '1V0hN8ZJfKmlHmYhvyR-AvEWDBY5OxtQ71YimLEJ7eUk';
 let GAS_URL = GAS_URL_EMBEDDED;
 let SHEET_ID = SHEET_ID_EMBEDDED;
@@ -2014,10 +2063,30 @@ function renderBukuKas(){
 }
 
 function hapusKas(id){
-  if(!confirm('Hapus transaksi ini?'))return;
-  APP.bukuKas=APP.bukuKas.filter(k=>k.id!==id);
-  pushAsync('deleteBukuKas',{id});save();
-  renderBukuKas();toast('🗑️ Transaksi dihapus');
+  APP.hapusKasId=id;
+  var rec=(APP.bukuKas||[]).find(function(k){return k.id===id;});
+  var detail=rec?' "'+rec.uraian+'" ('+(rec.tipe==='masuk'?'Masuk':'Keluar')+' - '+idr(rec.jumlah)+') tgl '+rec.tanggal:'';
+  var el=$('modal-hapus-kas-detail');
+  if(el)el.textContent=detail?'Transaksi: '+detail:'Transaksi ini akan dihapus permanen.';
+  openModal('modal-hapus-kas');
+}
+
+async function konfirmasiHapusKas(){
+  var id=APP.hapusKasId;
+  if(!id)return;
+  closeModal('modal-hapus-kas');
+  APP.bukuKas=(APP.bukuKas||[]).filter(function(k){return k.id!==id;});
+  save();renderBukuKas();
+  toast('Transaksi berhasil dihapus');
+  if(GAS_URL){
+    setSyncStatus('syncing','Menghapus di Sheets...');
+    try{
+      var j=await gasPost('deleteBukuKas',{id:id});
+      if(j&&j.ok)setSyncStatus('ok','Terhapus di Sheets '+new Date().toLocaleTimeString('id-ID'));
+      else setSyncStatus('error','Gagal: '+(j&&j.error||'Error'));
+    }catch(e){setSyncStatus('error',e.message);}
+  }
+  APP.hapusKasId=null;
 }
 
 function exportKasCSV(){
@@ -2027,9 +2096,420 @@ function exportKasCSV(){
   const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);a.download='buku_kas_'+new Date().toISOString().slice(0,10)+'.csv';a.click();
 }
 
-function printBukuKas(){
-  window.print();
+// ================================================================
+// SYNC BUKU KAS KE GOOGLE SHEETS
+// ================================================================
+async function syncBukuKasToSheets(btn){
+  if(!GAS_URL){toast('⚠️ GAS URL tidak tersedia','warn');return}
+  if(!(APP.bukuKas||[]).length){toast('⚠️ Buku kas kosong!','warn');return}
+  if(btn){btn.textContent='⏳ Mengirim...';btn.disabled=true;}
+  setSyncStatus('syncing','🔄 Mengirim buku kas ke Sheets...');
+  try{
+    const j=await gasPost('syncAll',{
+      sekolah:APP.sekolah,pembayaran:APP.pembayaran,cfg:APP.cfg,
+      riwayatBesaran:APP.riwayatBesaran,insidensialJenis:APP.insidensialJenis,
+      bukuKas:APP.bukuKas
+    });
+    if(j&&j.ok){
+      setSyncStatus('ok','✅ Buku kas terkirim · '+new Date().toLocaleTimeString('id-ID'));
+      toast('✅ '+((APP.bukuKas||[]).length)+' transaksi buku kas berhasil dikirim ke Google Sheets!');
+    }else{
+      setSyncStatus('error','⚠️ '+(j&&j.error||'Gagal'));
+      toast('⚠️ Gagal: '+(j&&j.error||'Error tidak diketahui'),'warn');
+    }
+  }catch(e){
+    setSyncStatus('error','⚠️ '+e.message);
+    toast('❌ '+e.message,'danger');
+  }finally{
+    if(btn){btn.textContent='☁️ Sync Sheets';btn.disabled=false;}
+  }
 }
+
+// ================================================================
+// HELPER: KOP SURAT
+// ================================================================
+function buildKopSurat(){
+  const org=APP.cfg.namaKKKS||'KKKS Arut Selatan';
+  const alamat=APP.cfg.alamat||'Arut Selatan';
+  const ketua=APP.cfg.ketua||'__________________';
+  const bendahara=APP.cfg.bendahara||'__________________';
+  const ta=APP.cfg.ta||'2025/2026';
+  return{org,alamat,ketua,bendahara,ta};
+}
+
+function fmtTgl(d){return new Date(d).toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'})}
+function tglCetak(){return new Date().toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'})}
+
+// ================================================================
+// CETAK / PDF LAPORAN REKAP SEMUA SEKOLAH (FORMAL)
+// ================================================================
+function cetakLaporanRekap(){
+  const ta=$('lap-ta')?.value||APP.cfg.ta;
+  const{t1,t2}=parseTA(ta);
+  const{org,alamat,ketua,bendahara}=buildKopSurat();
+
+  // Hitung total per jenis
+  let tk=0,ts=0,ti=0;
+  const bulanRows=BUTA.map(b=>{
+    const thn=b>=7?t1:t2;
+    const arr=APP.pembayaran.filter(p=>p.bulan===b&&p.tahun===thn);
+    const k=arr.filter(p=>p.jenis==='kkks').reduce((s,p)=>s+(p.jumlah||0),0);
+    const s=arr.filter(p=>p.jenis==='sosial').reduce((s,p)=>s+(p.jumlah||0),0);
+    const ins=arr.filter(p=>p.jenis==='insidensial').reduce((s,p)=>s+(p.jumlah||0),0);
+    tk+=k;ts+=s;ti+=ins;
+    const tot=k+s+ins;
+    return`<tr>
+      <td>${BN[b]} ${thn}</td>
+      <td style="text-align:right">${k>0?idr(k):'—'}</td>
+      <td style="text-align:right">${s>0?idr(s):'—'}</td>
+      <td style="text-align:right">${ins>0?idr(ins):'—'}</td>
+      <td style="text-align:right;font-weight:700">${tot>0?idr(tot):'—'}</td>
+    </tr>`;
+  }).join('');
+  const grand=tk+ts+ti;
+
+  // Rekap per sekolah
+  const sekolahRows=APP.sekolah.map((s,i)=>{
+    const bs=APP.pembayaran.filter(p=>p.sekolahId===s.id&&(p.ta===ta||(p.tahun===t1&&p.bulan>=7)||(p.tahun===t2&&p.bulan<=6)));
+    const k=bs.filter(p=>p.jenis==='kkks').reduce((x,p)=>x+(p.jumlah||0),0);
+    const so=bs.filter(p=>p.jenis==='sosial').reduce((x,p)=>x+(p.jumlah||0),0);
+    const ins=bs.filter(p=>p.jenis==='insidensial').reduce((x,p)=>x+(p.jumlah||0),0);
+    const tot=k+so+ins;
+    const kBln=new Set(bs.filter(p=>p.jenis==='kkks').map(p=>p.bulan+'_'+p.tahun)).size;
+    const sBln=new Set(bs.filter(p=>p.jenis==='sosial').map(p=>p.bulan+'_'+p.tahun)).size;
+    const status=kBln>=BUTA.length&&sBln>=BUTA.length?'LUNAS':kBln>0||sBln>0?'SEBAGIAN':'BELUM';
+    return`<tr>
+      <td style="text-align:center">${i+1}</td>
+      <td>${s.nama}</td>
+      <td>${s.kecamatan||'—'}</td>
+      <td style="text-align:right">${k>0?idr(k):'—'}</td>
+      <td style="text-align:right">${so>0?idr(so):'—'}</td>
+      <td style="text-align:right">${ins>0?idr(ins):'—'}</td>
+      <td style="text-align:right;font-weight:700">${tot>0?idr(tot):'—'}</td>
+      <td style="text-align:center;font-weight:700;color:${status==='LUNAS'?'#047857':status==='SEBAGIAN'?'#d97706':'#b91c1c'}">${status}</td>
+    </tr>`;
+  }).join('');
+
+  // Belum bayar ringkasan
+  const now=new Date();const bNow=now.getMonth()+1;const thnNow=now.getFullYear();
+  const belumKKKS=APP.sekolah.filter(s=>{
+    const paid=new Set(APP.pembayaran.filter(p=>p.sekolahId===s.id&&p.jenis==='kkks').map(p=>p.bulan+'_'+p.tahun));
+    return BUTA.some(b=>{const thn=b>=7?t1:t2;return new Date(thn,b-1,1)<=new Date(thnNow,bNow-1,1)&&!paid.has(b+'_'+thn);});
+  });
+
+  const html=`
+  <style>
+    *{box-sizing:border-box}
+    body{font-family:'Times New Roman',Times,serif;font-size:11px;color:#000;margin:0;padding:15mm 20mm 15mm 25mm;background:white}
+    .kop{text-align:center;border-bottom:3px double #000;padding-bottom:8px;margin-bottom:10px}
+    .kop h1{font-size:15px;font-weight:900;text-transform:uppercase;letter-spacing:.5px;margin:0 0 2px}
+    .kop h2{font-size:12px;font-weight:700;margin:0 0 2px}
+    .kop p{font-size:10px;margin:0}
+    .doc-title{text-align:center;font-size:13px;font-weight:900;text-transform:uppercase;text-decoration:underline;margin:10px 0 2px}
+    .doc-sub{text-align:center;font-size:11px;margin-bottom:2px}
+    .doc-ta{text-align:center;font-size:10px;margin-bottom:10px;color:#333}
+    .meta{font-size:10px;margin-bottom:6px;display:flex;justify-content:space-between}
+    table{width:100%;border-collapse:collapse;margin-bottom:10px;font-size:10px}
+    th{background:#1e293b;color:white;padding:5px 7px;border:1px solid #334155;font-size:9.5px;font-weight:700}
+    td{padding:4px 7px;border:1px solid #aaa}
+    tr:nth-child(even){background:#f4f4f4}
+    tfoot td{background:#ffd6d6;font-weight:800;border:1px solid #f87171}
+    .section-h{font-size:11px;font-weight:800;background:#e2e8f0;padding:4px 7px;border:1px solid #cbd5e1;margin-top:10px;text-transform:uppercase}
+    .grand-box{background:#1e293b;color:white;padding:7px 12px;display:flex;justify-content:space-between;margin:8px 0;font-size:11px}
+    .grand-box .gv{font-weight:900;font-size:14px}
+    .ttd{display:flex;justify-content:space-between;margin-top:16px;padding-top:8px}
+    .ttd-box{text-align:center;font-size:10px;min-width:140px}
+    .ttd-space{height:42px}
+    .note{font-size:9px;font-style:italic;color:#555;margin-top:4px}
+    @page{size:A4;margin:0}
+  </style>
+  <div class="kop">
+    <h1>${org}</h1>
+    <h2>Kelompok Kepala Sekolah Dasar</h2>
+    <p>${alamat}</p>
+  </div>
+  <div class="doc-title">Laporan Rekapitulasi Keuangan Iuran</div>
+  <div class="doc-sub">KKKS ${org}</div>
+  <div class="doc-ta">Tahun Ajaran ${ta}</div>
+  <div class="meta">
+    <span>Dicetak: ${tglCetak()}</span>
+    <span>Total Sekolah: ${APP.sekolah.length}</span>
+  </div>
+
+  <div class="section-h">I. Rekap Pemasukan Per Bulan</div>
+  <table>
+    <thead><tr><th>Bulan / Tahun</th><th style="text-align:right">Iuran KKKS</th><th style="text-align:right">Iuran Sosial</th><th style="text-align:right">Insidensial</th><th style="text-align:right">Total</th></tr></thead>
+    <tbody>${bulanRows}</tbody>
+    <tfoot><tr><td style="font-weight:800">JUMLAH TOTAL</td><td style="text-align:right">${idr(tk)}</td><td style="text-align:right">${idr(ts)}</td><td style="text-align:right">${idr(ti)}</td><td style="text-align:right">${idr(grand)}</td></tr></tfoot>
+  </table>
+
+  <div class="grand-box">
+    <span>Grand Total Seluruh Pemasukan TA ${ta}</span>
+    <span class="gv">${idr(grand)}</span>
+  </div>
+
+  <div class="section-h">II. Rekap Per Sekolah</div>
+  <table>
+    <thead><tr><th style="text-align:center">No</th><th>Nama Sekolah</th><th>Kecamatan</th><th style="text-align:right">KKKS</th><th style="text-align:right">Sosial</th><th style="text-align:right">Insidensial</th><th style="text-align:right">Total</th><th style="text-align:center">Status</th></tr></thead>
+    <tbody>${sekolahRows||'<tr><td colspan="8" style="text-align:center">Belum ada data</td></tr>'}</tbody>
+  </table>
+
+  ${belumKKKS.length?`
+  <div class="section-h">III. Daftar Sekolah Belum Lunas KKKS (s/d ${BN[bNow]} ${thnNow})</div>
+  <table>
+    <thead><tr><th>No</th><th>Nama Sekolah</th><th>Kecamatan</th></tr></thead>
+    <tbody>${belumKKKS.map((s,i)=>`<tr><td style="text-align:center">${i+1}</td><td>${s.nama}</td><td>${s.kecamatan||'—'}</td></tr>`).join('')}</tbody>
+  </table>`:''}
+
+  <p class="note">* Laporan ini dibuat secara otomatis oleh Sistem Informasi Manajemen Keuangan KKKS Arut Selatan.</p>
+
+  <div class="ttd">
+    <div class="ttd-box">
+      <div>Mengetahui,</div>
+      <div>Ketua KKKS</div>
+      <div class="ttd-space"></div>
+      <div style="font-weight:700;border-top:1px solid #000;padding-top:2px">${ketua}</div>
+    </div>
+    <div class="ttd-box">
+      <div>Arut Selatan, ${tglCetak()}</div>
+      <div>Bendahara KKKS</div>
+      <div class="ttd-space"></div>
+      <div style="font-weight:700;border-top:1px solid #000;padding-top:2px">${bendahara}</div>
+    </div>
+  </div>`;
+
+  const w=window.open('','_blank','width=850,height=1100');
+  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Laporan Rekap KKKS '+ta+'</title></head><body>'+html+'</body></html>');
+  w.document.close();w.focus();
+  setTimeout(()=>{w.print();},600);
+}
+
+// ================================================================
+// CETAK / PDF LAPORAN PER SEKOLAH (FORMAL)
+// ================================================================
+function cetakLaporanPerSekolah(){
+  const sid=$('lap-per-sekolah-sel')?.value||'';
+  if(!sid){toast('⚠️ Pilih sekolah terlebih dahulu di bagian Laporan Per Sekolah!','warn');return}
+  const sekolah=APP.sekolah.find(s=>s.id===sid);
+  if(!sekolah){toast('⚠️ Sekolah tidak ditemukan','warn');return}
+  const ta=$('lap-ta')?.value||APP.cfg.ta;
+  const{t1,t2}=parseTA(ta);
+  const{org,alamat,ketua,bendahara}=buildKopSurat();
+
+  const bs=APP.pembayaran.filter(p=>p.sekolahId===sid);
+  const kList=bs.filter(p=>p.jenis==='kkks').sort((a,b)=>a.bulan-b.bulan);
+  const sList=bs.filter(p=>p.jenis==='sosial').sort((a,b)=>a.bulan-b.bulan);
+  const iList=bs.filter(p=>p.jenis==='insidensial').sort((a,b)=>(a.tanggal||'').localeCompare(b.tanggal||''));
+  const kTotal=kList.reduce((s,p)=>s+(p.jumlah||0),0);
+  const sTotal=sList.reduce((s,p)=>s+(p.jumlah||0),0);
+  const iTotal=iList.reduce((s,p)=>s+(p.jumlah||0),0);
+  const grandTotal=kTotal+sTotal+iTotal;
+
+  const kkksRows=kList.length?kList.map((p,i)=>`<tr><td style="text-align:center">${i+1}</td><td>${p.tanggal?fmtTgl(p.tanggal):'—'}</td><td>${BN[p.bulan]} ${p.tahun}</td><td style="text-align:right;font-weight:700">${idr(p.jumlah)}</td><td>${p.catatan||'—'}</td></tr>`).join(''):'<tr><td colspan="5" style="text-align:center;color:#888">Belum ada data KKKS</td></tr>';
+  const sosialRows=sList.length?sList.map((p,i)=>`<tr><td style="text-align:center">${i+1}</td><td>${p.tanggal?fmtTgl(p.tanggal):'—'}</td><td>${BN[p.bulan]} ${p.tahun}</td><td style="text-align:right;font-weight:700">${idr(p.jumlah)}</td><td>${p.catatan||'—'}</td></tr>`).join(''):'<tr><td colspan="5" style="text-align:center;color:#888">Belum ada data Sosial</td></tr>';
+  const insidRows=iList.length?iList.map((p,i)=>`<tr><td style="text-align:center">${i+1}</td><td>${p.tanggal?fmtTgl(p.tanggal):'—'}</td><td>${p.namaKegiatan||'—'}</td><td style="text-align:right;font-weight:700">${idr(p.jumlah)}</td><td>${p.catatan||'—'}</td></tr>`).join(''):'<tr><td colspan="5" style="text-align:center;color:#888">Belum ada data Insidensial</td></tr>';
+
+  // Status lunas per jenis
+  const kBln=new Set(kList.map(p=>p.bulan+'_'+p.tahun)).size;
+  const sBln=new Set(sList.map(p=>p.bulan+'_'+p.tahun)).size;
+  const maxBln=BUTA.length;
+  const statusKKKS=kBln>=maxBln?'LUNAS ('+kBln+'/'+maxBln+' bulan)':kBln>0?'SEBAGIAN ('+kBln+'/'+maxBln+' bulan)':'BELUM BAYAR';
+  const statusSosial=sBln>=maxBln?'LUNAS ('+sBln+'/'+maxBln+' bulan)':sBln>0?'SEBAGIAN ('+sBln+'/'+maxBln+' bulan)':'BELUM BAYAR';
+
+  const html=`
+  <style>
+    *{box-sizing:border-box}
+    body{font-family:'Times New Roman',Times,serif;font-size:11px;color:#000;margin:0;padding:15mm 20mm 15mm 25mm;background:white}
+    .kop{text-align:center;border-bottom:3px double #000;padding-bottom:8px;margin-bottom:10px}
+    .kop h1{font-size:15px;font-weight:900;text-transform:uppercase;letter-spacing:.5px;margin:0 0 2px}
+    .kop h2{font-size:12px;font-weight:700;margin:0 0 2px}
+    .kop p{font-size:10px;margin:0}
+    .doc-title{text-align:center;font-size:13px;font-weight:900;text-transform:uppercase;text-decoration:underline;margin:10px 0 2px}
+    .doc-sub{text-align:center;font-size:11px;margin-bottom:10px}
+    .info-box{background:#f0f4f8;border:1px solid #cbd5e1;border-radius:4px;padding:8px 12px;margin-bottom:10px;font-size:10px}
+    .info-row{display:flex;gap:20px;margin-bottom:3px}
+    .info-label{font-weight:700;min-width:120px}
+    table{width:100%;border-collapse:collapse;margin-bottom:8px;font-size:10px}
+    th{background:#1e293b;color:white;padding:5px 7px;border:1px solid #334155;font-size:9.5px;font-weight:700}
+    td{padding:4px 7px;border:1px solid #aaa}
+    tr:nth-child(even){background:#f4f4f4}
+    tfoot td{background:#ffd6d6;font-weight:800;border:1px solid #f87171}
+    .section-h{font-size:11px;font-weight:800;padding:4px 7px;border-left:4px solid #1e293b;margin:10px 0 4px;background:#f8fafc}
+    .grand-box{background:#1e293b;color:white;padding:7px 12px;display:flex;justify-content:space-between;margin:8px 0}
+    .grand-box .gv{font-weight:900;font-size:14px}
+    .ttd{display:flex;justify-content:flex-end;margin-top:16px}
+    .ttd-box{text-align:center;font-size:10px;min-width:140px;margin-left:60px}
+    .ttd-space{height:42px}
+    .note{font-size:9px;font-style:italic;color:#555;margin-top:8px}
+    .meta{display:flex;justify-content:space-between;font-size:10px;margin-bottom:8px}
+    @page{size:A4;margin:0}
+  </style>
+  <div class="kop">
+    <h1>${org}</h1>
+    <h2>Kelompok Kepala Sekolah Dasar</h2>
+    <p>${alamat}</p>
+  </div>
+  <div class="doc-title">Laporan Pembayaran Iuran Per Sekolah</div>
+  <div class="doc-sub">Tahun Ajaran ${ta}</div>
+
+  <div class="info-box">
+    <div class="info-row"><span class="info-label">Nama Sekolah</span><span>: <strong>${sekolah.nama}</strong></span></div>
+    <div class="info-row"><span class="info-label">Kecamatan</span><span>: ${sekolah.kecamatan||'—'}</span></div>
+    <div class="info-row"><span class="info-label">Status KKKS</span><span>: <strong>${statusKKKS}</strong></span></div>
+    <div class="info-row"><span class="info-label">Status Sosial</span><span>: <strong>${statusSosial}</strong></span></div>
+    <div class="info-row"><span class="info-label">Insidensial</span><span>: ${iList.length} transaksi</span></div>
+  </div>
+
+  <div class="meta"><span>Dicetak: ${tglCetak()}</span><span>Total Terbayar: <strong>${idr(grandTotal)}</strong></span></div>
+
+  <div class="section-h">I. Iuran KKKS</div>
+  <table>
+    <thead><tr><th>No</th><th>Tanggal Bayar</th><th>Bulan</th><th style="text-align:right">Jumlah</th><th>Catatan</th></tr></thead>
+    <tbody>${kkksRows}</tbody>
+    <tfoot><tr><td colspan="3" style="font-weight:800">Total Iuran KKKS</td><td style="text-align:right">${idr(kTotal)}</td><td></td></tr></tfoot>
+  </table>
+
+  <div class="section-h">II. Iuran Sosial</div>
+  <table>
+    <thead><tr><th>No</th><th>Tanggal Bayar</th><th>Bulan</th><th style="text-align:right">Jumlah</th><th>Catatan</th></tr></thead>
+    <tbody>${sosialRows}</tbody>
+    <tfoot><tr><td colspan="3" style="font-weight:800">Total Iuran Sosial</td><td style="text-align:right">${idr(sTotal)}</td><td></td></tr></tfoot>
+  </table>
+
+  <div class="section-h">III. Iuran Insidensial</div>
+  <table>
+    <thead><tr><th>No</th><th>Tanggal</th><th>Nama Kegiatan</th><th style="text-align:right">Jumlah</th><th>Catatan</th></tr></thead>
+    <tbody>${insidRows}</tbody>
+    <tfoot><tr><td colspan="3" style="font-weight:800">Total Insidensial</td><td style="text-align:right">${idr(iTotal)}</td><td></td></tr></tfoot>
+  </table>
+
+  <div class="grand-box">
+    <span>Grand Total Seluruh Pembayaran</span>
+    <span class="gv">${idr(grandTotal)}</span>
+  </div>
+
+  <p class="note">* Laporan ini dibuat secara otomatis oleh Sistem Informasi Manajemen Keuangan KKKS Arut Selatan.</p>
+
+  <div class="ttd">
+    <div class="ttd-box">
+      <div>Arut Selatan, ${tglCetak()}</div>
+      <div>Bendahara KKKS</div>
+      <div class="ttd-space"></div>
+      <div style="font-weight:700;border-top:1px solid #000;padding-top:2px">${bendahara}</div>
+    </div>
+  </div>`;
+
+  const w=window.open('','_blank','width=850,height=1100');
+  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Laporan Per Sekolah - '+sekolah.nama+'</title></head><body>'+html+'</body></html>');
+  w.document.close();w.focus();
+  setTimeout(()=>{w.print();},600);
+}
+
+// ================================================================
+// CETAK BUKU KAS FORMAL (PDF)
+// ================================================================
+function cetakBukuKasFormal(){
+  if(!(APP.bukuKas||[]).length){toast('⚠️ Buku kas masih kosong!','warn');return}
+  const{org,alamat,ketua,bendahara}=buildKopSurat();
+  const sorted=[...APP.bukuKas].sort((a,b)=>a.tanggal.localeCompare(b.tanggal));
+  const totalMasuk=APP.bukuKas.filter(k=>k.tipe==='masuk').reduce((s,k)=>s+(k.jumlah||0),0);
+  const totalKeluar=APP.bukuKas.filter(k=>k.tipe==='keluar').reduce((s,k)=>s+(k.jumlah||0),0);
+  const saldo=totalMasuk-totalKeluar;
+
+  let runSaldo=0;
+  const rows=sorted.map((k,i)=>{
+    if(k.tipe==='masuk')runSaldo+=k.jumlah||0;
+    else runSaldo-=k.jumlah||0;
+    return`<tr>
+      <td style="text-align:center">${i+1}</td>
+      <td style="white-space:nowrap">${k.tanggal?fmtTgl(k.tanggal):'—'}</td>
+      <td>${k.nobukti||'—'}</td>
+      <td>${k.uraian}</td>
+      <td style="text-align:right;color:${k.tipe==='masuk'?'#047857':'#aaa'}">${k.tipe==='masuk'?idr(k.jumlah):'—'}</td>
+      <td style="text-align:right;color:${k.tipe==='keluar'?'#b91c1c':'#aaa'}">${k.tipe==='keluar'?idr(k.jumlah):'—'}</td>
+      <td style="text-align:right;font-weight:700">${idr(runSaldo)}</td>
+      <td>${k.catatan||'—'}</td>
+    </tr>`;
+  }).join('');
+
+  const html=`
+  <style>
+    *{box-sizing:border-box}
+    body{font-family:'Times New Roman',Times,serif;font-size:10px;color:#000;margin:0;padding:12mm 15mm 12mm 20mm;background:white}
+    .kop{text-align:center;border-bottom:3px double #000;padding-bottom:7px;margin-bottom:8px}
+    .kop h1{font-size:14px;font-weight:900;text-transform:uppercase;margin:0 0 2px}
+    .kop h2{font-size:11px;font-weight:700;margin:0 0 2px}
+    .kop p{font-size:9px;margin:0}
+    .doc-title{text-align:center;font-size:12px;font-weight:900;text-transform:uppercase;text-decoration:underline;margin:8px 0 2px}
+    .doc-sub{text-align:center;font-size:10px;margin-bottom:8px}
+    table{width:100%;border-collapse:collapse;margin-bottom:8px;font-size:9px}
+    th{background:#1e293b;color:white;padding:4px 6px;border:1px solid #334155;font-size:8.5px;font-weight:700}
+    td{padding:3px 6px;border:1px solid #aaa;vertical-align:middle}
+    tr:nth-child(even){background:#f4f4f4}
+    tfoot td{background:#ffd6d6;font-weight:800;border:1px solid #f87171}
+    .summary-box{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px;font-size:10px}
+    .sb-item{border:1px solid #cbd5e1;border-radius:4px;padding:6px;text-align:center}
+    .sb-label{font-size:8px;color:#555;text-transform:uppercase;margin-bottom:2px}
+    .sb-val{font-weight:800;font-size:12px}
+    .ttd{display:flex;justify-content:space-between;margin-top:14px}
+    .ttd-box{text-align:center;font-size:9px;min-width:130px}
+    .ttd-space{height:38px}
+    .meta{display:flex;justify-content:space-between;font-size:9px;margin-bottom:6px}
+    @page{size:A4 landscape;margin:0}
+  </style>
+  <div class="kop">
+    <h1>${org}</h1>
+    <h2>Kelompok Kepala Sekolah Dasar</h2>
+    <p>${alamat}</p>
+  </div>
+  <div class="doc-title">Buku Kas Umum</div>
+  <div class="doc-sub">Laporan Transaksi Kas Masuk & Keluar</div>
+
+  <div class="summary-box">
+    <div class="sb-item"><div class="sb-label">Total Masuk</div><div class="sb-val" style="color:#047857">${idr(totalMasuk)}</div></div>
+    <div class="sb-item"><div class="sb-label">Total Keluar</div><div class="sb-val" style="color:#b91c1c">${idr(totalKeluar)}</div></div>
+    <div class="sb-item"><div class="sb-label">Saldo</div><div class="sb-val" style="color:${saldo>=0?'#047857':'#b91c1c'}">${idr(saldo)}</div></div>
+  </div>
+
+  <div class="meta"><span>Dicetak: ${tglCetak()}</span><span>Total Transaksi: ${sorted.length}</span></div>
+
+  <table>
+    <thead><tr><th>No</th><th>Tanggal</th><th>No. Bukti</th><th>Uraian</th><th style="text-align:right">Masuk (Rp)</th><th style="text-align:right">Keluar (Rp)</th><th style="text-align:right">Saldo (Rp)</th><th>Catatan</th></tr></thead>
+    <tbody>${rows}</tbody>
+    <tfoot><tr>
+      <td colspan="4" style="font-weight:800;text-align:right">TOTAL</td>
+      <td style="text-align:right">${idr(totalMasuk)}</td>
+      <td style="text-align:right">${idr(totalKeluar)}</td>
+      <td style="text-align:right">${idr(saldo)}</td>
+      <td></td>
+    </tr></tfoot>
+  </table>
+
+  <div class="ttd">
+    <div class="ttd-box">
+      <div>Mengetahui,</div>
+      <div>Ketua KKKS</div>
+      <div class="ttd-space"></div>
+      <div style="font-weight:700;border-top:1px solid #000;padding-top:2px">${ketua}</div>
+    </div>
+    <div class="ttd-box">
+      <div>Arut Selatan, ${tglCetak()}</div>
+      <div>Bendahara KKKS</div>
+      <div class="ttd-space"></div>
+      <div style="font-weight:700;border-top:1px solid #000;padding-top:2px">${bendahara}</div>
+    </div>
+  </div>`;
+
+  const w=window.open('','_blank','width=1100,height=850');
+  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Buku Kas Umum KKKS</title></head><body>'+html+'</body></html>');
+  w.document.close();w.focus();
+  setTimeout(()=>{w.print();},600);
+}
+
+// ================================================================
+// OLD printBukuKas (kept for backward compat)
+// ================================================================
+function printBukuKas(){cetakBukuKasFormal();}
 
 // ================================================================
 // ADMIN
@@ -2286,5 +2766,22 @@ function init(){
 
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 </script>
+
+<!-- MODAL KONFIRMASI HAPUS KAS -->
+<div class="modal-overlay" id="modal-hapus-kas">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-hd">
+      <div class="modal-title">Konfirmasi Hapus Transaksi</div>
+      <button class="modal-close" onclick="closeModal('modal-hapus-kas')">X</button>
+    </div>
+    <p style="font-size:.82rem;color:#475569;margin-bottom:8px">Apakah Anda yakin ingin menghapus transaksi berikut?</p>
+    <div id="modal-hapus-kas-detail" style="font-size:.8rem;font-weight:700;color:#7f1d1d;background:#fef2f2;border:1px solid #fee2e2;border-radius:8px;padding:10px 12px;margin-bottom:14px;line-height:1.5"></div>
+    <p style="font-size:.75rem;color:#b91c1c;margin-bottom:16px">Data akan dihapus dari lokal dan Google Sheets secara permanen.</p>
+    <div class="btn-row" style="justify-content:flex-end">
+      <button class="btn btn-ghost" onclick="closeModal('modal-hapus-kas')">Batal</button>
+      <button class="btn btn-primary" onclick="konfirmasiHapusKas()" style="background:linear-gradient(135deg,#7f1d1d,#c0392b)">Ya, Hapus</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
