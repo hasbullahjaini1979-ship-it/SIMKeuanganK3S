@@ -257,7 +257,7 @@ tbody td{padding:8px 10px;vertical-align:middle}
 /* ---- MODAL ---- */
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.55);backdrop-filter:blur(4px);z-index:99990;align-items:center;justify-content:center;padding:14px}
 .modal-overlay.open{display:flex}
-.modal{background:white;border-radius:14px;padding:22px;width:100%;max-width:460px;box-shadow:0 20px 60px rgba(0,0,0,.22);animation:modalIn .22s ease}
+.modal{background:white;border-radius:14px;padding:22px;width:100%;max-width:560px;box-shadow:0 20px 60px rgba(0,0,0,.22);animation:modalIn .22s ease;max-height:90vh;overflow-y:auto}
 @keyframes modalIn{from{opacity:0;transform:scale(.94) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
 .modal-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
 .modal-title{font-size:.95rem;font-weight:800;color:var(--red-d)}
@@ -1185,7 +1185,15 @@ async function loadFromSheets(){
     const j=await gasPost('getData',{});
     if(j&&j.ok){
       if(j.sekolah)APP.sekolah=j.sekolah;
-      if(j.pembayaran)APP.pembayaran=j.pembayaran;
+      // FIX v5: Normalisasi tipe data pembayaran dari Sheets (string→number)
+      if(j.pembayaran)APP.pembayaran=j.pembayaran.map(p=>({
+        ...p,
+        bulan:Number(p.bulan)||0,
+        tahun:Number(p.tahun)||0,
+        jumlah:Number(p.jumlah)||0,
+        jumlahSatuan:Number(p.jumlahSatuan)||1,
+        jenis:(p.jenis||'').toLowerCase().trim()
+      }));
       if(j.insidensialJenis)APP.insidensialJenis=j.insidensialJenis;
       if(j.riwayatBesaran)APP.riwayatBesaran=j.riwayatBesaran;
       if(j.bukuKas)APP.bukuKas=j.bukuKas;
@@ -1319,12 +1327,13 @@ function renderBeranda(){
   $('ph-nama').textContent=APP.cfg.namaKKKS||'SIM Keuangan KKKS';
   $('ph-ta').textContent='TA '+ta;
   const now=new Date();const bn=now.getMonth()+1;const thn=now.getFullYear();
-  const lunasKKKSIds=new Set(APP.pembayaran.filter(p=>p.jenis==='kkks'&&p.bulan===bn&&p.tahun===thn&&(p.ta===ta||!p.ta)).map(p=>p.sekolahId));
+  // FIX v6: parseInt+trim mencegah mismatch string vs number dari Sheets
+  const lunasKKKSIds=new Set(APP.pembayaran.filter(p=>String(p.jenis).trim()==='kkks'&&parseInt(String(p.bulan).trim())===bn&&parseInt(String(p.tahun).trim())===thn).map(p=>String(p.sekolahId).trim()));
   const n=APP.sekolah.length;
   const lunas=lunasKKKSIds.size;const belum=n-lunas;
   const pct=n?Math.round(lunas/n*100):0;
   const{t1,t2}=parseTA(ta);
-  const income=APP.pembayaran.filter(p=>p.ta===ta||(p.tahun===t1&&p.bulan>=7)||(p.tahun===t2&&p.bulan<=6)).reduce((s,p)=>s+(p.jumlah||0),0);
+  const income=APP.pembayaran.filter(p=>p.ta===ta||(Number(p.tahun)===t1&&Number(p.bulan)>=7)||(Number(p.tahun)===t2&&Number(p.bulan)<=6)).reduce((s,p)=>s+(Number(p.jumlah)||0),0);
   $('b-income').textContent=idr(income);
   $('b-prog').style.width=pct+'%';
   $('b-prog-label').textContent=lunas+' sekolah lunas KKKS '+BN[bn]+' '+thn;
@@ -1343,19 +1352,26 @@ function renderIuranCards(){
     {key:'insidensial',icon:'📌',title:'Iuran Insidensial',cls:'irc-insidensial',amtKey:'iuranInsidensial'}
   ];
   $('b-iuran-cards').innerHTML=types.map(t=>{
-    const bayarBulanIni=APP.pembayaran.filter(p=>p.jenis===t.key&&p.bulan===bn&&p.tahun===thn);
-    const lunasIds=new Set(bayarBulanIni.map(p=>p.sekolahId));
-    const sl=lunasIds.size;const sb=Math.max(0,APP.sekolah.length-sl);
-    const totalBulanIni=bayarBulanIni.reduce((s,p)=>s+(p.jumlah||0),0);
+    // FIX v6: parseInt + trim mencegah mismatch string/number dari Google Sheets
+    const isInsid=t.key==='insidensial';
+    const bayarBulanIni=isInsid
+      ? APP.pembayaran.filter(p=>String(p.jenis).trim()===t.key)
+      : APP.pembayaran.filter(p=>String(p.jenis).trim()===t.key&&parseInt(String(p.bulan).trim())===bn&&parseInt(String(p.tahun).trim())===thn);
+    const lunasIds=new Set(bayarBulanIni.map(p=>String(p.sekolahId).trim()));
+    const sl=lunasIds.size;
+    // FIX v6: hitung belum = jumlah sekolah yg tidak ada di lunasIds (bukan sekadar total-lunas)
+    const belumList=APP.sekolah.filter(s=>!lunasIds.has(String(s.id).trim()));
+    const sb=belumList.length;
+    const totalBulanIni=bayarBulanIni.reduce((s,p)=>s+(Number(p.jumlah)||0),0);
     return`<div class="irc ${t.cls}">
       <div class="irc-icon">${t.icon}</div>
       <div class="irc-title">${t.title}</div>
-      <div class="irc-bulan">Bulan: ${BN[bn]} ${thn}</div>
-      <div class="irc-amount">${idr(APP.cfg[t.amtKey]||0)}${t.key!=='insidensial'?'/bln':'/keg'}</div>
+      <div class="irc-bulan">${isInsid?'Semua Periode':'Bulan: '+BN[bn]+' '+thn}</div>
+      <div class="irc-amount">${idr(APP.cfg[t.amtKey]||0)}${!isInsid?'/bln':'/keg'}</div>
       <div class="irc-stats">
-        <div class="irc-stat"><span class="irs-val" onclick="showDrilldown('lunas','${t.key}',${bn},${thn})">${sl}</span><span class="irs-label">Lunas</span></div>
-        <div class="irc-stat"><span class="irs-val" onclick="showDrilldown('belum','${t.key}',${bn},${thn})">${sb}</span><span class="irs-label">Belum</span></div>
-        <div class="irc-stat"><span class="irs-val" style="cursor:default">${idr(totalBulanIni).replace('Rp ','Rp')}</span><span class="irs-label">Bulan Ini</span></div>
+        <div class="irc-stat"><span class="irs-val" onclick="showDrilldown('lunas','${t.key}',${isInsid?0:bn},${isInsid?0:thn})">${sl}</span><span class="irs-label">${isInsid?'Sudah Bayar':'Lunas'}</span></div>
+        <div class="irc-stat"><span class="irs-val" onclick="showDrilldown('belum','${t.key}',${isInsid?0:bn},${isInsid?0:thn})">${sb}</span><span class="irs-label">${isInsid?'Belum Bayar':'Belum'}</span></div>
+        <div class="irc-stat"><span class="irs-val" style="cursor:default">${idr(totalBulanIni).replace('Rp ','Rp')}</span><span class="irs-label">Total</span></div>
       </div>
     </div>`;
   }).join('');
@@ -1372,10 +1388,11 @@ function renderBerandaRekap(){
   BUTA.forEach(b=>{
     const thn=b>=7?t1:t2;
     types.forEach(jenis=>{
-      const bayar=APP.pembayaran.filter(p=>p.jenis===jenis&&p.bulan===b&&p.tahun===thn);
-      const sl=new Set(bayar.map(p=>p.sekolahId)).size;
+      // FIX v6: parseInt+trim agar konsisten dengan data dari Google Sheets
+      const bayar=APP.pembayaran.filter(p=>String(p.jenis).trim()===jenis&&parseInt(String(p.bulan).trim())===b&&parseInt(String(p.tahun).trim())===thn);
+      const sl=new Set(bayar.map(p=>String(p.sekolahId).trim())).size;
       const sb=Math.max(0,APP.sekolah.length-sl);
-      const total=bayar.reduce((s,p)=>s+(p.jumlah||0),0);
+      const total=bayar.reduce((s,p)=>s+(Number(p.jumlah)||0),0);
       rows.push({b,thn,jenis,sl,sb,total});
     });
   });
@@ -1393,32 +1410,72 @@ function renderBerandaRekap(){
 
 function showDrilldown(status,jenis,bulan,tahun){
   const jl={kkks:'Iuran KKKS',sosial:'Iuran Sosial',insidensial:'Insidensial'};
-  const bayar=bulan?APP.pembayaran.filter(p=>p.jenis===jenis&&p.bulan===bulan&&p.tahun===tahun):APP.pembayaran.filter(p=>p.jenis===jenis);
-  const lunasIds=new Set(bayar.map(p=>p.sekolahId));
-  const list=status==='lunas'?APP.sekolah.filter(s=>lunasIds.has(s.id)):APP.sekolah.filter(s=>!lunasIds.has(s.id));
-  const bulanStr=bulan?BN[bulan]+' '+tahun:'Semua';
+  // FIX v6: robust filter dengan parseInt+trim agar string dari Sheets tidak gagal
+  const isInsid=jenis==='insidensial';
+  const bayar=(!bulan||isInsid)
+    ? APP.pembayaran.filter(p=>String(p.jenis).trim()===jenis)
+    : APP.pembayaran.filter(p=>String(p.jenis).trim()===jenis&&parseInt(String(p.bulan).trim())===Number(bulan)&&parseInt(String(p.tahun).trim())===Number(tahun));
+  const lunasIds=new Set(bayar.map(p=>String(p.sekolahId).trim()));
+  const list=status==='lunas'
+    ?APP.sekolah.filter(s=>lunasIds.has(String(s.id).trim()))
+    :APP.sekolah.filter(s=>!lunasIds.has(String(s.id).trim()));
+  const bulanStr=bulan&&!isInsid?BN[bulan]+' '+tahun:'Semua Periode';
   $('modal-drill-title').textContent=(status==='lunas'?'✅ Sudah Lunas':'⏳ Belum Lunas')+' — '+jl[jenis]+' ('+bulanStr+')';
   if(!list.length){
     $('modal-drill-body').innerHTML='<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Tidak ada data</div></div>';
   }else{
-    $('modal-drill-body').innerHTML=`<div class="sekolah-grid">${list.map(s=>{
-      const b2=bayar.filter(p=>p.sekolahId===s.id);
-      const tot=b2.reduce((x,p)=>x+(p.jumlah||0),0);
-      return`<div class="sekolah-card sc-${status}">
-        <div class="sc-nama">${s.nama}</div>
-        <div class="sc-info">${s.kecamatan||''}</div>
-        <div class="sc-status" style="color:${status==='lunas'?'#047857':'#b91c1c'}">
-          ${status==='lunas'?'✅ Lunas · '+idr(tot):'⏳ Belum Bayar'}
-        </div>
+    // FIX v6: tampilkan sebagai TABEL dengan kolom pencarian, bukan grid card
+    const rowsHtml=list.map((s,i)=>{
+      const b2=bayar.filter(p=>String(p.sekolahId).trim()===String(s.id).trim());
+      const tot=b2.reduce((x,p)=>x+(Number(p.jumlah)||0),0);
+      const statusTxt=status==='lunas'?`✅ Lunas · ${idr(tot)}`:'⏳ Belum Bayar';
+      const statusColor=status==='lunas'?'#047857':'#b91c1c';
+      return`<tr>
+        <td style="color:#94a3b8;font-size:.72rem;text-align:center">${i+1}</td>
+        <td style="font-weight:700">${s.nama}</td>
+        <td style="font-size:.75rem;color:#64748b">${s.kecamatan||'—'}</td>
+        <td style="font-weight:700;color:${statusColor};font-size:.75rem">${statusTxt}</td>
+      </tr>`;
+    }).join('');
+    $('modal-drill-body').innerHTML=`
+      <div style="margin-bottom:10px">
+        <input type="text" id="drill-cari" placeholder="🔍 Cari nama sekolah..." oninput="filterDrillTable(this.value)"
+          style="width:100%;padding:9px 12px;border:2px solid #e2e8f0;border-radius:8px;font-family:inherit;font-size:.82rem;background:#f8fafc">
+      </div>
+      <div style="font-size:.73rem;color:#64748b;margin-bottom:8px">
+        Menampilkan <strong id="drill-count">${list.length}</strong> sekolah
+      </div>
+      <div class="table-wrap">
+        <table id="drill-table">
+          <thead><tr>
+            <th style="width:36px;text-align:center">#</th>
+            <th>Nama Sekolah</th>
+            <th>Kecamatan</th>
+            <th>${status==='lunas'?'Jumlah Bayar':'Status'}</th>
+          </tr></thead>
+          <tbody id="drill-tbody">${rowsHtml}</tbody>
+        </table>
       </div>`;
-    }).join('')}</div>`;
   }
   openModal('modal-drill');
 }
 
-// ================================================================
-// BENDAHARA
-// ================================================================
+function filterDrillTable(keyword){
+  const q=(keyword||'').toLowerCase().trim();
+  const tbody=$('drill-tbody');if(!tbody)return;
+  const rows=tbody.querySelectorAll('tr');
+  let visible=0;
+  rows.forEach(tr=>{
+    const nama=(tr.querySelector('td:nth-child(2)')?.textContent||'').toLowerCase();
+    const kec=(tr.querySelector('td:nth-child(3)')?.textContent||'').toLowerCase();
+    const match=!q||nama.includes(q)||kec.includes(q);
+    tr.style.display=match?'':'none';
+    if(match)visible++;
+  });
+  const cnt=$('drill-count');if(cnt)cnt.textContent=visible;
+}
+
+
 function refreshBendahara(){
   populateSekolahSelect();populateTASelects();
   renderIuranTypeBtns();renderRiwayat();renderDataSekolah();
@@ -1530,7 +1587,7 @@ function cekStatusBayar(){
   const sid=$('inp-sekolah').value;const ta=$('inp-ta').value;
   if(!sid){buildBulanGrid(new Set());return}
   const{t1,t2}=parseTA(ta);
-  const lunas=new Set(APP.pembayaran.filter(p=>p.sekolahId===sid&&p.jenis===APP.selectedIuranType&&((p.tahun===t1&&p.bulan>=7)||(p.tahun===t2&&p.bulan<=6))).map(p=>p.bulan+'_'+p.tahun));
+  const lunas=new Set(APP.pembayaran.filter(p=>p.sekolahId===sid&&p.jenis===APP.selectedIuranType&&((Number(p.tahun)===t1&&Number(p.bulan)>=7)||(Number(p.tahun)===t2&&Number(p.bulan)<=6))).map(p=>Number(p.bulan)+'_'+Number(p.tahun)));
   buildBulanGrid(lunas);
 }
 
@@ -1757,7 +1814,7 @@ function renderRiwayat(){
   const tbody=$('tb-riwayat');if(!tbody)return;
   let data=[...APP.pembayaran].reverse();
   if(jf)data=data.filter(p=>p.jenis===jf);
-  if(bf){const[b,thn]=bf.split('_').map(Number);data=data.filter(p=>p.bulan===b&&p.tahun===thn)}
+  if(bf){const[b,thn]=bf.split('_').map(Number);data=data.filter(p=>Number(p.bulan)===b&&Number(p.tahun)===thn)}
   if(cari)data=data.filter(p=>(p.namaSekolah||'').toLowerCase().includes(cari));
   if(!data.length){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:16px">Tidak ada data</td></tr>';return}
   const jb={kkks:'badge-kkks',sosial:'badge-sosial',insidensial:'badge-insidensial'};
@@ -1797,7 +1854,7 @@ function renderDataSekolah(){
   if(cari)list=list.filter(s=>s.nama.toLowerCase().includes(cari));
   if(sf&&jf&&bf){
     const[b,thn]=bf.split('_').map(Number);
-    const lids=new Set(APP.pembayaran.filter(p=>p.jenis===jf&&p.bulan===b&&p.tahun===thn).map(p=>p.sekolahId));
+    const lids=new Set(APP.pembayaran.filter(p=>p.jenis===jf&&Number(p.bulan)===b&&Number(p.tahun)===thn).map(p=>p.sekolahId));
     list=sf==='lunas'?list.filter(s=>lids.has(s.id)):list.filter(s=>!lids.has(s.id));
   }
   const tbody=$('tb-data-sekolah');if(!tbody)return;
@@ -1813,7 +1870,7 @@ function renderDataSekolah(){
       if(got>0)return`<span class="badge badge-partial">${got}/${needed}bln</span>`;
       return'<span class="badge badge-belum">Belum</span>';
     }
-    const gt=bs.reduce((x,p)=>x+(p.jumlah||0),0);
+    const gt=bs.reduce((x,p)=>x+(Number(p.jumlah)||0),0);
     return`<tr><td style="color:#94a3b8;font-size:.73rem">${i+1}</td>
     <td style="font-weight:600">${s.nama}</td>
     <td>${st('kkks')}</td><td>${st('sosial')}</td><td>${st('insidensial')}</td>
@@ -1840,10 +1897,10 @@ function renderLaporan(){
   let tk=0,ts=0,ti=0;
   const rows=BUTA.map(b=>{
     const thn=b>=7?t1:t2;
-    const arr=APP.pembayaran.filter(p=>p.bulan===b&&p.tahun===thn);
-    const k=arr.filter(p=>p.jenis==='kkks').reduce((s,p)=>s+(p.jumlah||0),0);
-    const s=arr.filter(p=>p.jenis==='sosial').reduce((s,p)=>s+(p.jumlah||0),0);
-    const ins=arr.filter(p=>p.jenis==='insidensial').reduce((s,p)=>s+(p.jumlah||0),0);
+    const arr=APP.pembayaran.filter(p=>Number(p.bulan)===b&&Number(p.tahun)===thn);
+    const k=arr.filter(p=>p.jenis==='kkks').reduce((s,p)=>s+(Number(p.jumlah)||0),0);
+    const s=arr.filter(p=>p.jenis==='sosial').reduce((s,p)=>s+(Number(p.jumlah)||0),0);
+    const ins=arr.filter(p=>p.jenis==='insidensial').reduce((s,p)=>s+(Number(p.jumlah)||0),0);
     tk+=k;ts+=s;ti+=ins;
     const tot=k+s+ins;
     return`<tr><td style="white-space:nowrap">${BN[b]} ${thn}</td>
@@ -1869,7 +1926,7 @@ function renderBelumBayar(){
   // Cek tiap sekolah, berapa bulan yang belum dibayar s/d bulan ini
   const belumData=[];
   APP.sekolah.forEach(s=>{
-    const paid=new Set(APP.pembayaran.filter(p=>p.sekolahId===s.id&&p.jenis===jenis).map(p=>p.bulan+'_'+p.tahun));
+    const paid=new Set(APP.pembayaran.filter(p=>p.sekolahId===s.id&&p.jenis===jenis).map(p=>Number(p.bulan)+'_'+Number(p.tahun)));
     // Cek dari bulan 7 tahun t1 s/d bulan ini
     const{t1,t2}=parseTA();
     const belumBulan=[];
@@ -1923,10 +1980,10 @@ function renderPortfolio(){
   if(!APP.sekolah.length){grid.innerHTML='<div style="color:#94a3b8;font-size:.78rem">Belum ada data sekolah</div>';return}
   grid.innerHTML=APP.sekolah.map(s=>{
     const bs=APP.pembayaran.filter(p=>p.sekolahId===s.id);
-    const kBulan=new Set(bs.filter(p=>p.jenis==='kkks').map(p=>p.bulan+'_'+p.tahun)).size;
-    const sBulan=new Set(bs.filter(p=>p.jenis==='sosial').map(p=>p.bulan+'_'+p.tahun)).size;
+    const kBulan=new Set(bs.filter(p=>p.jenis==='kkks').map(p=>Number(p.bulan)+'_'+Number(p.tahun))).size;
+    const sBulan=new Set(bs.filter(p=>p.jenis==='sosial').map(p=>Number(p.bulan)+'_'+Number(p.tahun))).size;
     const iCount=bs.filter(p=>p.jenis==='insidensial').length;
-    const total=bs.reduce((x,p)=>x+(p.jumlah||0),0);
+    const total=bs.reduce((x,p)=>x+(Number(p.jumlah)||0),0);
     const maxBulan=BUTA.length;
     const pct=(kBulan+sBulan)/(maxBulan*2)*100;
     const cls=pct>=100?'pc-lunas':pct>0?'pc-partial':'pc-belum';
@@ -1961,7 +2018,7 @@ function renderLaporanPerSekolah(){
   const kBulan=bs.filter(p=>p.jenis==='kkks');
   const sBulan=bs.filter(p=>p.jenis==='sosial');
   const iList=bs.filter(p=>p.jenis==='insidensial');
-  const total=bs.reduce((x,p)=>x+(p.jumlah||0),0);
+  const total=bs.reduce((x,p)=>x+(Number(p.jumlah)||0),0);
 
   const kkksRows=kBulan.length?kBulan.map(p=>`<tr><td>${p.tanggal||'—'}</td><td>${BN[p.bulan]} ${p.tahun}</td><td style="color:#1e40af;font-weight:700">${idr(p.jumlah)}</td></tr>`).join(''):'<tr><td colspan="3" style="color:#94a3b8;text-align:center">Belum ada data</td></tr>';
   const sosialRows=sBulan.length?sBulan.map(p=>`<tr><td>${p.tanggal||'—'}</td><td>${BN[p.bulan]} ${p.tahun}</td><td style="color:#047857;font-weight:700">${idr(p.jumlah)}</td></tr>`).join(''):'<tr><td colspan="3" style="color:#94a3b8;text-align:center">Belum ada data</td></tr>';
@@ -1974,15 +2031,15 @@ function renderLaporanPerSekolah(){
       <div style="font-weight:800;font-size:1.1rem;color:var(--green);margin-top:8px">${idr(total)}</div>
       <div style="font-size:.68rem;color:var(--slate-xl)">Total Pembayaran</div>
     </div>
-    <div style="font-size:.72rem;font-weight:700;color:#1e40af;margin-bottom:5px">🏦 Iuran KKKS (${kBulan.length} bulan · ${idr(kBulan.reduce((s,p)=>s+(p.jumlah||0),0))})</div>
+    <div style="font-size:.72rem;font-weight:700;color:#1e40af;margin-bottom:5px">🏦 Iuran KKKS (${kBulan.length} bulan · ${idr(kBulan.reduce((s,p)=>s+(Number(p.jumlah)||0),0))})</div>
     <div class="table-wrap" style="margin-bottom:10px">
       <table><thead><tr><th>Tanggal</th><th>Bulan</th><th>Jumlah</th></tr></thead><tbody>${kkksRows}</tbody></table>
     </div>
-    <div style="font-size:.72rem;font-weight:700;color:#047857;margin-bottom:5px">🤝 Iuran Sosial (${sBulan.length} bulan · ${idr(sBulan.reduce((s,p)=>s+(p.jumlah||0),0))})</div>
+    <div style="font-size:.72rem;font-weight:700;color:#047857;margin-bottom:5px">🤝 Iuran Sosial (${sBulan.length} bulan · ${idr(sBulan.reduce((s,p)=>s+(Number(p.jumlah)||0),0))})</div>
     <div class="table-wrap" style="margin-bottom:10px">
       <table><thead><tr><th>Tanggal</th><th>Bulan</th><th>Jumlah</th></tr></thead><tbody>${sosialRows}</tbody></table>
     </div>
-    <div style="font-size:.72rem;font-weight:700;color:#d97706;margin-bottom:5px">📌 Insidensial (${iList.length}x · ${idr(iList.reduce((s,p)=>s+(p.jumlah||0),0))})</div>
+    <div style="font-size:.72rem;font-weight:700;color:#d97706;margin-bottom:5px">📌 Insidensial (${iList.length}x · ${idr(iList.reduce((s,p)=>s+(Number(p.jumlah)||0),0))})</div>
     <div class="table-wrap">
       <table><thead><tr><th>Tanggal</th><th>Kegiatan</th><th>Jumlah</th></tr></thead><tbody>${insidRows}</tbody></table>
     </div>`;
@@ -2152,10 +2209,10 @@ function cetakLaporanRekap(){
   let tk=0,ts=0,ti=0;
   const bulanRows=BUTA.map(b=>{
     const thn=b>=7?t1:t2;
-    const arr=APP.pembayaran.filter(p=>p.bulan===b&&p.tahun===thn);
-    const k=arr.filter(p=>p.jenis==='kkks').reduce((s,p)=>s+(p.jumlah||0),0);
-    const s=arr.filter(p=>p.jenis==='sosial').reduce((s,p)=>s+(p.jumlah||0),0);
-    const ins=arr.filter(p=>p.jenis==='insidensial').reduce((s,p)=>s+(p.jumlah||0),0);
+    const arr=APP.pembayaran.filter(p=>Number(p.bulan)===b&&Number(p.tahun)===thn);
+    const k=arr.filter(p=>p.jenis==='kkks').reduce((s,p)=>s+(Number(p.jumlah)||0),0);
+    const s=arr.filter(p=>p.jenis==='sosial').reduce((s,p)=>s+(Number(p.jumlah)||0),0);
+    const ins=arr.filter(p=>p.jenis==='insidensial').reduce((s,p)=>s+(Number(p.jumlah)||0),0);
     tk+=k;ts+=s;ti+=ins;
     const tot=k+s+ins;
     return`<tr>
@@ -2170,13 +2227,13 @@ function cetakLaporanRekap(){
 
   // Rekap per sekolah
   const sekolahRows=APP.sekolah.map((s,i)=>{
-    const bs=APP.pembayaran.filter(p=>p.sekolahId===s.id&&(p.ta===ta||(p.tahun===t1&&p.bulan>=7)||(p.tahun===t2&&p.bulan<=6)));
-    const k=bs.filter(p=>p.jenis==='kkks').reduce((x,p)=>x+(p.jumlah||0),0);
-    const so=bs.filter(p=>p.jenis==='sosial').reduce((x,p)=>x+(p.jumlah||0),0);
-    const ins=bs.filter(p=>p.jenis==='insidensial').reduce((x,p)=>x+(p.jumlah||0),0);
+    const bs=APP.pembayaran.filter(p=>p.sekolahId===s.id&&(p.ta===ta||(Number(p.tahun)===t1&&Number(p.bulan)>=7)||(Number(p.tahun)===t2&&Number(p.bulan)<=6)));
+    const k=bs.filter(p=>p.jenis==='kkks').reduce((x,p)=>x+(Number(p.jumlah)||0),0);
+    const so=bs.filter(p=>p.jenis==='sosial').reduce((x,p)=>x+(Number(p.jumlah)||0),0);
+    const ins=bs.filter(p=>p.jenis==='insidensial').reduce((x,p)=>x+(Number(p.jumlah)||0),0);
     const tot=k+so+ins;
-    const kBln=new Set(bs.filter(p=>p.jenis==='kkks').map(p=>p.bulan+'_'+p.tahun)).size;
-    const sBln=new Set(bs.filter(p=>p.jenis==='sosial').map(p=>p.bulan+'_'+p.tahun)).size;
+    const kBln=new Set(bs.filter(p=>p.jenis==='kkks').map(p=>Number(p.bulan)+'_'+Number(p.tahun))).size;
+    const sBln=new Set(bs.filter(p=>p.jenis==='sosial').map(p=>Number(p.bulan)+'_'+Number(p.tahun))).size;
     const status=kBln>=BUTA.length&&sBln>=BUTA.length?'LUNAS':kBln>0||sBln>0?'SEBAGIAN':'BELUM';
     return`<tr>
       <td style="text-align:center">${i+1}</td>
@@ -2193,7 +2250,7 @@ function cetakLaporanRekap(){
   // Belum bayar ringkasan
   const now=new Date();const bNow=now.getMonth()+1;const thnNow=now.getFullYear();
   const belumKKKS=APP.sekolah.filter(s=>{
-    const paid=new Set(APP.pembayaran.filter(p=>p.sekolahId===s.id&&p.jenis==='kkks').map(p=>p.bulan+'_'+p.tahun));
+    const paid=new Set(APP.pembayaran.filter(p=>p.sekolahId===s.id&&p.jenis==='kkks').map(p=>Number(p.bulan)+'_'+Number(p.tahun)));
     return BUTA.some(b=>{const thn=b>=7?t1:t2;return new Date(thn,b-1,1)<=new Date(thnNow,bNow-1,1)&&!paid.has(b+'_'+thn);});
   });
 
@@ -2300,9 +2357,9 @@ function cetakLaporanPerSekolah(){
   const kList=bs.filter(p=>p.jenis==='kkks').sort((a,b)=>a.bulan-b.bulan);
   const sList=bs.filter(p=>p.jenis==='sosial').sort((a,b)=>a.bulan-b.bulan);
   const iList=bs.filter(p=>p.jenis==='insidensial').sort((a,b)=>(a.tanggal||'').localeCompare(b.tanggal||''));
-  const kTotal=kList.reduce((s,p)=>s+(p.jumlah||0),0);
-  const sTotal=sList.reduce((s,p)=>s+(p.jumlah||0),0);
-  const iTotal=iList.reduce((s,p)=>s+(p.jumlah||0),0);
+  const kTotal=kList.reduce((s,p)=>s+(Number(p.jumlah)||0),0);
+  const sTotal=sList.reduce((s,p)=>s+(Number(p.jumlah)||0),0);
+  const iTotal=iList.reduce((s,p)=>s+(Number(p.jumlah)||0),0);
   const grandTotal=kTotal+sTotal+iTotal;
 
   const kkksRows=kList.length?kList.map((p,i)=>`<tr><td style="text-align:center">${i+1}</td><td>${p.tanggal?fmtTgl(p.tanggal):'—'}</td><td>${BN[p.bulan]} ${p.tahun}</td><td style="text-align:right;font-weight:700">${idr(p.jumlah)}</td><td>${p.catatan||'—'}</td></tr>`).join(''):'<tr><td colspan="5" style="text-align:center;color:#888">Belum ada data KKKS</td></tr>';
@@ -2310,8 +2367,8 @@ function cetakLaporanPerSekolah(){
   const insidRows=iList.length?iList.map((p,i)=>`<tr><td style="text-align:center">${i+1}</td><td>${p.tanggal?fmtTgl(p.tanggal):'—'}</td><td>${p.namaKegiatan||'—'}</td><td style="text-align:right;font-weight:700">${idr(p.jumlah)}</td><td>${p.catatan||'—'}</td></tr>`).join(''):'<tr><td colspan="5" style="text-align:center;color:#888">Belum ada data Insidensial</td></tr>';
 
   // Status lunas per jenis
-  const kBln=new Set(kList.map(p=>p.bulan+'_'+p.tahun)).size;
-  const sBln=new Set(sList.map(p=>p.bulan+'_'+p.tahun)).size;
+  const kBln=new Set(kList.map(p=>Number(p.bulan)+'_'+Number(p.tahun))).size;
+  const sBln=new Set(sList.map(p=>Number(p.bulan)+'_'+Number(p.tahun))).size;
   const maxBln=BUTA.length;
   const statusKKKS=kBln>=maxBln?'LUNAS ('+kBln+'/'+maxBln+' bulan)':kBln>0?'SEBAGIAN ('+kBln+'/'+maxBln+' bulan)':'BELUM BAYAR';
   const statusSosial=sBln>=maxBln?'LUNAS ('+sBln+'/'+maxBln+' bulan)':sBln>0?'SEBAGIAN ('+sBln+'/'+maxBln+' bulan)':'BELUM BAYAR';
