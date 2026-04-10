@@ -410,6 +410,21 @@ tbody td{padding:8px 10px;vertical-align:middle}
 /* ---- CHECKBOX SELECT MULTI ---- */
 .rw-select-bar{display:flex;align-items:center;gap:8px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px 10px;margin-bottom:10px;font-size:.75rem;font-weight:600;color:#92400e}
 
+/* ---- SEKOLAH SEARCH DROPDOWN ---- */
+.sekolah-search-wrap{position:relative;margin-bottom:10px}
+.sekolah-search-input{width:100%;padding:9px 11px 9px 34px;border:2px solid var(--border);border-radius:8px;font-family:inherit;font-size:.82rem;background:#f8fafc;color:var(--slate);transition:border-color .2s}
+.sekolah-search-input:focus{outline:none;border-color:var(--red);background:white;box-shadow:0 0 0 3px rgba(192,57,43,.08)}
+.sekolah-search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:.85rem;pointer-events:none;opacity:.5}
+.sekolah-dropdown{display:none;position:absolute;top:100%;left:0;right:0;background:white;border:2px solid var(--red);border-top:none;border-radius:0 0 8px 8px;z-index:500;max-height:200px;overflow-y:auto;box-shadow:0 6px 16px rgba(0,0,0,.12)}
+.sekolah-dropdown.open{display:block}
+.sekolah-dd-item{padding:9px 12px;font-size:.82rem;cursor:pointer;border-bottom:1px solid #f1f5f9;transition:background .12s;color:var(--slate)}
+.sekolah-dd-item:last-child{border-bottom:none}
+.sekolah-dd-item:hover,.sekolah-dd-item.selected{background:var(--red-l);color:var(--red-d);font-weight:700}
+.sekolah-dd-empty{padding:12px;font-size:.78rem;color:var(--slate-xl);text-align:center}
+.sekolah-selected-info{display:none;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:7px;padding:7px 10px;font-size:.78rem;font-weight:700;color:var(--green);margin-top:5px;align-items:center;justify-content:space-between}
+.sekolah-selected-info.show{display:flex}
+.sekolah-clear-btn{background:none;border:none;cursor:pointer;font-size:.8rem;color:var(--green);padding:0;line-height:1}
+
 /* ---- RUNNING TEXT ADMIN ---- */
 .rtxt-preview{background:#7f1d1d;color:rgba(255,255,255,.9);font-size:.75rem;padding:7px 12px;border-radius:7px;font-weight:600;overflow:hidden;white-space:nowrap;margin-bottom:8px}
 
@@ -569,7 +584,36 @@ tbody td{padding:8px 10px;vertical-align:middle}
       <div class="section active" id="sec-b-input">
         <div class="card">
           <div class="card-title">💳 Catat Pembayaran Iuran</div>
-          <div style="font-size:.68rem;font-weight:700;color:var(--slate-l);text-transform:uppercase;margin-bottom:7px">1. Pilih Jenis Iuran</div>
+
+          <!-- LANGKAH 1: PILIH SEKOLAH -->
+          <div style="font-size:.68rem;font-weight:700;color:var(--slate-l);text-transform:uppercase;margin-bottom:7px">1. Pilih Sekolah</div>
+          <div class="form-row" style="margin-bottom:4px">
+            <div class="fg" style="flex:2;min-width:160px">
+              <label>Cari &amp; Pilih Sekolah *</label>
+              <div class="sekolah-search-wrap">
+                <span class="sekolah-search-icon">🔍</span>
+                <input type="text" class="sekolah-search-input" id="inp-sekolah-cari"
+                  placeholder="Ketik nama sekolah..."
+                  oninput="onSekolahSearchInput(this.value)"
+                  onfocus="onSekolahSearchFocus()"
+                  autocomplete="off">
+                <div class="sekolah-dropdown" id="sekolah-dropdown"></div>
+              </div>
+              <div class="sekolah-selected-info" id="sekolah-selected-info">
+                <span id="sekolah-selected-label">—</span>
+                <button class="sekolah-clear-btn" onclick="clearSekolahSelect()" title="Ganti sekolah">✕ Ganti</button>
+              </div>
+              <!-- Hidden select tetap ada untuk kompatibilitas fungsi lain -->
+              <select id="inp-sekolah" style="display:none" onchange="cekStatusBayar()"><option value="">-- Pilih Sekolah --</option></select>
+            </div>
+            <div class="fg">
+              <label>Tahun Ajaran</label>
+              <select id="inp-ta" onchange="cekStatusBayar()"></select>
+            </div>
+          </div>
+
+          <!-- LANGKAH 2: PILIH JENIS IURAN -->
+          <div style="font-size:.68rem;font-weight:700;color:var(--slate-l);text-transform:uppercase;margin:12px 0 7px">2. Pilih Jenis Iuran</div>
           <div class="iuran-type-tabs">
             <button class="itb t-kkks active" id="itb-kkks" onclick="selectIuranType('kkks',this)">
               <span class="itb-icon">🏦</span>
@@ -590,7 +634,7 @@ tbody td{padding:8px 10px;vertical-align:middle}
 
           <!-- INSIDENSIAL EXTRA -->
           <div id="wrap-insidensial" style="display:none">
-            <div style="font-size:.68rem;font-weight:700;color:var(--slate-l);text-transform:uppercase;margin-bottom:7px">2. Pengaturan Iuran Insidensial</div>
+            <div style="font-size:.68rem;font-weight:700;color:var(--slate-l);text-transform:uppercase;margin-bottom:7px">2b. Pengaturan Iuran Insidensial</div>
             <div class="form-row">
               <div class="fg" style="flex:2">
                 <label>Nama Kegiatan *</label>
@@ -601,7 +645,7 @@ tbody td{padding:8px 10px;vertical-align:middle}
                 <input type="date" id="inp-tgl-insid">
               </div>
             </div>
-            <div style="font-size:.68rem;font-weight:700;color:var(--slate-l);text-transform:uppercase;margin-bottom:7px">3. Satuan Pembayaran</div>
+            <div style="font-size:.68rem;font-weight:700;color:var(--slate-l);text-transform:uppercase;margin-bottom:7px">Satuan Pembayaran</div>
             <div class="satuan-grid">
               <button class="satuan-opt active" id="so-per_sekolah" onclick="selectSatuan('per_sekolah',this)">
                 <span class="so-icon">🏫</span><div class="so-label">Per Sekolah</div>
@@ -632,20 +676,9 @@ tbody td{padding:8px 10px;vertical-align:middle}
             </div>
           </div>
 
-          <!-- KKKS & SOSIAL FIELDS -->
+          <!-- LANGKAH 3: PILIH BULAN -->
           <div id="wrap-bulan">
-            <div style="font-size:.68rem;font-weight:700;color:var(--slate-l);text-transform:uppercase;margin-bottom:7px">2. Pilih Sekolah & Bulan</div>
-          </div>
-
-          <div class="form-row">
-            <div class="fg" style="flex:2;min-width:160px">
-              <label>Sekolah *</label>
-              <select id="inp-sekolah" onchange="cekStatusBayar()"><option value="">-- Pilih Sekolah --</option></select>
-            </div>
-            <div class="fg">
-              <label>Tahun Ajaran</label>
-              <select id="inp-ta" onchange="cekStatusBayar()"></select>
-            </div>
+            <div style="font-size:.68rem;font-weight:700;color:var(--slate-l);text-transform:uppercase;margin:12px 0 7px">3. Pilih Bulan</div>
           </div>
 
           <div id="wrap-bulan-grid">
@@ -1481,6 +1514,7 @@ function refreshBendahara(){
   renderIuranTypeBtns();renderRiwayat();renderDataSekolah();
   renderBelumBayar();populateBulanFilter();populateKegiatanSelect();
   populateLapPerSekolahSel();renderBukuKas();
+  syncSekolahSearchDisplay();
 }
 
 function renderIuranTypeBtns(){
@@ -1562,7 +1596,74 @@ function populateSekolahSelect(){
   [...APP.sekolah].sort((a,b)=>a.nama.localeCompare(b.nama)).forEach(s=>{
     sel.innerHTML+=`<option value="${s.id}">${s.nama}</option>`;
   });
+  // Sinkronkan juga tampilan search UI
+  syncSekolahSearchDisplay();
 }
+
+// ---- SEKOLAH SEARCH UI ----
+function syncSekolahSearchDisplay(){
+  const sel=$('inp-sekolah');
+  const info=$('sekolah-selected-info');
+  const cari=$('inp-sekolah-cari');
+  if(!sel||!info||!cari)return;
+  if(sel.value){
+    const opt=sel.options[sel.selectedIndex];
+    $('sekolah-selected-label').textContent='✅ '+opt.text;
+    info.classList.add('show');
+    cari.style.display='none';
+  }else{
+    info.classList.remove('show');
+    cari.style.display='';
+    cari.value='';
+    $('sekolah-dropdown').classList.remove('open');
+  }
+}
+
+function onSekolahSearchInput(val){
+  const dd=$('sekolah-dropdown');if(!dd)return;
+  const q=(val||'').toLowerCase().trim();
+  const list=[...APP.sekolah].sort((a,b)=>a.nama.localeCompare(b.nama));
+  const filtered=q?list.filter(s=>s.nama.toLowerCase().includes(q)||((s.kecamatan||'').toLowerCase().includes(q))):list;
+  if(!filtered.length){
+    dd.innerHTML='<div class="sekolah-dd-empty">Tidak ada sekolah yang cocok</div>';
+  }else{
+    dd.innerHTML=filtered.map(s=>`<div class="sekolah-dd-item" onclick="pilihSekolahFromDD('${s.id}','${s.nama.replace(/'/g,"\\'")}')">
+      <div style="font-weight:700;font-size:.82rem">${s.nama}</div>
+      ${s.kecamatan?`<div style="font-size:.68rem;color:#94a3b8">${s.kecamatan}</div>`:''}
+    </div>`).join('');
+  }
+  dd.classList.add('open');
+}
+
+function onSekolahSearchFocus(){
+  const cari=$('inp-sekolah-cari');
+  if(cari)onSekolahSearchInput(cari.value);
+}
+
+function pilihSekolahFromDD(id,nama){
+  const sel=$('inp-sekolah');if(!sel)return;
+  sel.value=id;
+  const dd=$('sekolah-dropdown');if(dd)dd.classList.remove('open');
+  const cari=$('inp-sekolah-cari');if(cari)cari.style.display='none';
+  const info=$('sekolah-selected-info');
+  if(info){$('sekolah-selected-label').textContent='✅ '+nama;info.classList.add('show');}
+  cekStatusBayar();
+}
+
+function clearSekolahSelect(){
+  const sel=$('inp-sekolah');if(sel)sel.value='';
+  const cari=$('inp-sekolah-cari');
+  if(cari){cari.style.display='';cari.value='';cari.focus();}
+  const info=$('sekolah-selected-info');if(info)info.classList.remove('show');
+  const dd=$('sekolah-dropdown');if(dd)dd.classList.remove('open');
+  buildBulanGrid(new Set());
+}
+
+// Tutup dropdown saat klik di luar
+document.addEventListener('click',function(e){
+  const wrap=e.target.closest('.sekolah-search-wrap');
+  if(!wrap){const dd=$('sekolah-dropdown');if(dd)dd.classList.remove('open');}
+});
 
 function populateTASelects(){
   const ta=APP.cfg.ta;const{t1,t2}=parseTA(ta);
